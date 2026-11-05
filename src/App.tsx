@@ -5,6 +5,7 @@ import { useEngineStatus } from './hooks/useEngine'
 import { engine } from './audio/engine'
 import { ChangesPage } from './pages/ChangesPage'
 import { ChordsPage } from './pages/ChordsPage'
+import { SongsPage } from './pages/SongsPage'
 import { StrumPage } from './pages/StrumPage'
 import { TunerPage } from './pages/TunerPage'
 
@@ -13,6 +14,7 @@ const TABS = [
   { id: 'chords', label: 'Chords', icon: '♯' },
   { id: 'changes', label: 'Changes', icon: '⇄' },
   { id: 'strum', label: 'Strum', icon: '↓↑' },
+  { id: 'songs', label: 'Songs', icon: '♫' },
 ] as const
 
 type TabId = (typeof TABS)[number]['id']
@@ -26,6 +28,12 @@ export default function App() {
   const [tab, setTab] = useState<TabId>(initialTab)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const status = useEngineStatus()
+
+  useEffect(() => {
+    const onHash = () => setTab(initialTab())
+    window.addEventListener('hashchange', onHash)
+    return () => window.removeEventListener('hashchange', onHash)
+  }, [])
 
   useEffect(() => {
     window.history.replaceState(null, '', `#${tab}`)
@@ -73,6 +81,7 @@ export default function App() {
         {tab === 'chords' && <ChordsPage />}
         {tab === 'changes' && <ChangesPage />}
         {tab === 'strum' && <StrumPage />}
+        {tab === 'songs' && <SongsPage />}
       </main>
 
       <footer className="foot muted small">

@@ -88,6 +88,8 @@ export const CHORDS: Chord[] = [
   make('Gmaj7', '320002', 'sevenths', 2),
   make('Amaj7', 'x02120', 'sevenths', 2, { fingers: '002130' }),
   make('Dmaj7', 'xx0222', 'sevenths', 2),
+  make('Bb7', 'x13131', 'sevenths', 3, { barre: [1, 1, 5] }),
+  make('Cdim7', 'x3424x', 'sevenths', 3),
   // --- Sus / add9
   make('Asus2', 'x02200', 'sus', 1, { fingers: '001200' }),
   make('Asus4', 'x02230', 'sus', 1, { fingers: '001230' }),
@@ -96,6 +98,7 @@ export const CHORDS: Chord[] = [
   make('Esus4', '022200', 'sus', 2),
   make('Cadd9', 'x32030', 'sus', 2, { fingers: '021030' }),
   make('Gadd9', '320203', 'sus', 3),
+  make('Bsus4', 'x24452', 'sus', 3, { barre: [2, 1, 5] }),
 
   // --- Barre chords
   make('F', '133211', 'barre', 2, { fingers: '134211', barre: [1, 0, 5], id: 'F:barre' }),
@@ -109,6 +112,9 @@ export const CHORDS: Chord[] = [
   make('Cm', 'x35543', 'barre', 3, { barre: [3, 1, 5] }),
   make('C#m', 'x46654', 'barre', 3, { barre: [4, 1, 5] }),
   make('Bm7', 'x24232', 'barre', 3, { barre: [2, 1, 5] }),
+  make('F#', '244322', 'barre', 3, { barre: [2, 0, 5] }),
+  make('G#m', '466444', 'barre', 3, { barre: [4, 0, 5] }),
+  make('C#', 'x46664', 'barre', 3, { barre: [4, 1, 5] }),
   make('F#7', '242322', 'barre', 3, { barre: [2, 0, 5] }),
   make('Ab', '466544', 'barre', 3, { barre: [4, 0, 5] }),
   make('Eb', 'x68886', 'barre', 3, { barre: [6, 1, 5] }),
@@ -121,6 +127,7 @@ export const CHORDS: Chord[] = [
   make('C5', 'x355xx', 'power', 2),
   make('B5', 'x244xx', 'power', 2),
   make('F5', '133xxx', 'power', 2),
+  make('F#5', '244xxx', 'power', 2),
 ]
 
 export const CHORD_BY_ID: Record<string, Chord> = Object.fromEntries(CHORDS.map((c) => [c.id, c]))
@@ -129,6 +136,15 @@ export function chordByName(name: string): Chord {
   const c = CHORDS.find((x) => x.name === name)
   if (!c) throw new Error(`Unknown chord ${name}`)
   return c
+}
+
+/** The same shape played with a capo: the shape stays, the sounding pitches move up. */
+export function transposeChord(c: Chord, semitones: number): Chord {
+  if (!semitones) return c
+  const notes = c.notes.map((n) => n + semitones)
+  const pcs = [...new Set(notes.map((n) => n % 12))].sort((a, b) => a - b)
+  const pcMask = pcs.reduce((m, p) => m | (1 << p), 0)
+  return { ...c, id: `${c.id}+capo${semitones}`, notes, pcs, pcMask }
 }
 
 export function chordLabel(c: Chord): string {

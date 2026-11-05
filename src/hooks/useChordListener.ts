@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { AnalysisFrame } from '../audio/core'
-import type { Chord } from '../music/chords'
+import { transposeChord, type Chord } from '../music/chords'
 import { matcher, MATCH_CONFIG, type Ranked, type Sensitivity } from '../dsp/chordMatch'
 import { STANDARD_TUNING, midiToFreq } from '../music/notes'
 import { useFrames, useOnsets } from './useEngine'
@@ -19,10 +19,10 @@ export interface ListenerState {
 
 const EMPTY: ListenerState = { signal: false, score: 0, heard: null, progress: 0, matched: false, wrong: false, strings: null }
 
-function stringHints(chord: Chord, frame: AnalysisFrame, a4: number): (boolean | null)[] {
+function stringHints(chord: Chord, frame: AnalysisFrame, a4: number, capo: number): (boolean | null)[] {
   return chord.frets.map((fret, i) => {
     if (fret === null) return null
-    const f = midiToFreq(STANDARD_TUNING[i] + fret, a4)
+    const f = midiToFreq(STANDARD_TUNING[i] + fret + capo, a4)
     const has = (freq: number) =>
       frame.peaks.some((p) => Math.abs(1200 * Math.log2(p.freq / freq)) < 40 && p.prom > 11)
     return has(f) || (has(2 * f) && has(3 * f))
@@ -39,9 +39,13 @@ export function useChordListener(opts: {
   sensitivity: Sensitivity
   a4: number
   resetKey?: unknown
+  /** Capo fret: the target is a shape, and it sounds this many semitones higher. */
+  capo?: number
   onMatch: () => void
 }): ListenerState {
-  const { target, enabled, sensitivity, a4, resetKey } = opts
+  const { target: shape, enabled, sensitivity, a4, resetKey } = opts
+  const capo = opts.capo ?? 0
+  const target = useMemo(() => (shape && capo ? transposeChord(shape, capo) : shape), [shape, capo])
   const [state, setState] = useState<ListenerState>(EMPTY)
   const onMatch = useRef(opts.onMatch)
   const lastOnset = useRef<number | null>(null)
@@ -99,10 +103,10 @@ export function useChordListener(opts: {
         heard: top && top.score > 0.7 ? top : null,
         progress,
         matched: h.fired,
-        strings: stringHints(target, f, a4),
+        strings: stringHints(shape!, f, a4, capo),
       })
     },
-    [target, enabled, sensitivity, a4],
+    [target, shape, capo, enabled, sensitivity, a4],
   )
 
   const onOnset = useCallback((o: { time: number }) => {
