@@ -24,6 +24,11 @@ class AudioEngine {
   private statusListeners = new Set<() => void>()
   private wantsByOwner = new Map<string, Partial<Wants>>()
   private a4 = 440
+  private gain = 1
+  private blockCount = 0
+  private peak = 0
+  private lastBlockAt = 0
+  private trackMuted = false
   private minFlux = 7
 
   get running(): boolean {
@@ -74,7 +79,8 @@ class AudioEngine {
     this.applyWants()
   }
 
-  configure(opts: { a4?: number; minFlux?: number }): void {
+  configure(opts: { a4?: number; minFlux?: number; gain?: number }): void {
+    if (opts.gain !== undefined) this.gain = opts.gain
     if (opts.a4 !== undefined) this.a4 = opts.a4
     if (opts.minFlux !== undefined) this.minFlux = opts.minFlux
     if (this.core) {
@@ -99,6 +105,33 @@ class AudioEngine {
     this.statusListeners.forEach((l) => l())
   }
 
+  /** Snapshot for the "why can't it hear me?" panel. */
+  diagnostics(): {
+    ctxState: string
+    sampleRate: number
+    blocksFlowing: boolean
+    peakDb: number
+    device: string
+    trackMuted: boolean
+    trackLive: boolean
+  } {
+    const now = performance.now()
+    return {
+      ctxState: this.ctx?.state ?? 'none',
+      sampleRate: this.ctx?.sampleRate ?? 0,
+      blocksFlowing: this.blockCount > 0 && now - this.lastBlockAt < 1000,
+      peakDb: this.peak > 0 ? 20 * Math.log10(this.peak) : -120,
+      device: this.deviceLabel,
+      trackMuted: this.trackMuted,
+      trackLive: this.stream?.getAudioTracks()[0]?.readyState === 'live',
+    }
+  }
+
+  async resumeAudio(): Promise<void> {
+    await this.ctx?.resume()
+    this.statusListeners.forEach((l) => l())
+  }
+
   async listInputs(): Promise<MediaDeviceInfo[]> {
     try {
       const all = await navigator.mediaDevices.enumerateDevices()
@@ -112,6 +145,10 @@ class AudioEngine {
     if (this.status === 'running' || this.status === 'starting') return
     this.setStatus('starting')
     try {
+      // Create/resume the context synchronously inside the click, before the permission prompt:
+      // Safari and some Chrome configs refuse to resume it afterwards.
+      const earlyCtx = this.ensureContext()
+      void earlyCtx.resume()
       if (!navigator.mediaDevices?.getUserMedia) {
         throw new Error('This browser has no microphone access (needs HTTPS or localhost).')
       }
@@ -124,12 +161,29 @@ class AudioEngine {
           channelCount: 1,
         },
       })
-      const ctx = this.ensureContext()
+      const ctx = earlyCtx
       await ctx.resume()
       await ctx.audioWorklet.addModule(`${import.meta.env.BASE_URL}worklets/capture.js`)
 
       const track = stream.getAudioTracks()[0]
       this.deviceLabel = track?.label ?? ''
+      this.trackMuted = !!track?.muted
+      if (track) {
+        track.onmute = () => {
+          this.trackMuted = true
+          this.statusListeners.forEach((l) => l())
+        }
+        track.onunmute = () => {
+          this.trackMuted = false
+          this.statusListeners.forEach((l) => l())
+        }
+        track.onended = () => {
+          this.cleanup()
+          this.setStatus('error', 'The microphone was disconnected or taken by another app. Turn it on again.')
+        }
+      }
+      this.blockCount = 0
+      this.peak = 0
       const lat = (track?.getSettings?.() as MediaTrackSettings & { latency?: number } | undefined)?.latency
       this.inputLatency = typeof lat === 'number' && lat > 0 && lat < 0.5 ? lat + (ctx.baseLatency || 0) : 0.025
 
@@ -149,7 +203,18 @@ class AudioEngine {
         channelCountMode: 'explicit',
       })
       node.port.onmessage = (e: MessageEvent<{ samples: Float32Array; frame: number }>) => {
-        core.pushBlock(e.data.samples, e.data.frame)
+        const x = e.data.samples
+        const g = this.gain
+        let pk = 0
+        for (let i = 0; i < x.length; i++) {
+          if (g !== 1) x[i] *= g
+          const a = Math.abs(x[i])
+          if (a > pk) pk = a
+        }
+        this.peak = Math.max(pk, this.peak * 0.9995)
+        this.blockCount++
+        this.lastBlockAt = performance.now()
+        core.pushBlock(x, e.data.frame)
       }
       const mute = ctx.createGain()
       mute.gain.value = 0

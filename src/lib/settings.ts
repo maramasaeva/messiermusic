@@ -11,6 +11,8 @@ export interface Settings {
   /** null = automatic estimate */
   latencyMs: number | null
   clickVolume: number
+  /** Software boost for quiet microphones. */
+  micGain: number
 
   // chord trainer
   chordGroups: ChordGroup[]
@@ -44,6 +46,7 @@ export const DEFAULT_SETTINGS: Settings = {
   strumSensitivity: 'normal',
   latencyMs: null,
   clickVolume: 0.8,
+  micGain: 1,
 
   chordGroups: ['open'],
   chordOrder: 'random',
@@ -73,7 +76,7 @@ const FLUX: Record<Settings['strumSensitivity'], number> = { low: 11, normal: 7,
 
 export function applySettingsToEngine(): void {
   const s = settingsStore.get()
-  engine.configure({ a4: s.a4, minFlux: FLUX[s.strumSensitivity] })
+  engine.configure({ a4: s.a4, minFlux: FLUX[s.strumSensitivity], gain: s.micGain })
 }
 
 settingsStore.subscribe(applySettingsToEngine)

@@ -143,8 +143,8 @@ export class AnalysisCore {
     this.levels.push(levelDb)
     if (this.levels.length > 160) this.levels.shift()
     const sorted = [...this.levels].sort((a, b) => a - b)
-    this.noiseDb = Math.min(-48, sorted[Math.floor(sorted.length * 0.15)])
-    const signal = levelDb >= Math.max(this.noiseDb + 9, -62)
+    this.noiseDb = Math.min(-52, sorted[Math.floor(sorted.length * 0.15)])
+    const signal = levelDb >= Math.max(this.noiseDb + 8, -74)
     this.signalNow = signal
 
     let pitch: PitchResult | null = null

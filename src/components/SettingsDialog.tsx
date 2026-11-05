@@ -114,6 +114,14 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
             </small>
           </div>
 
+          <label className="field wide">
+            <span>
+              Mic boost: <b className="mono">×{s.micGain}</b>
+            </span>
+            <input type="range" min={1} max={12} step={0.5} value={s.micGain} onChange={(e) => settingsStore.set({ micGain: Number(e.target.value) })} />
+            <small className="muted">Only for very quiet mics. Watch the dB number next to the level bar; strumming should reach about −30 to −10 dB.</small>
+          </label>
+
           <div className="row wrap gap">
             <label className="field">
               <span>Tuning reference A4 (Hz)</span>
