@@ -3,7 +3,7 @@ import type { AnalysisFrame } from '../audio/core'
 import type { Chord } from '../music/chords'
 import { matcher, MATCH_CONFIG, type Ranked, type Sensitivity } from '../dsp/chordMatch'
 import { STANDARD_TUNING, midiToFreq } from '../music/notes'
-import { useFrames } from './useEngine'
+import { useFrames, useOnsets } from './useEngine'
 
 export interface ListenerState {
   signal: boolean
@@ -12,10 +12,12 @@ export interface ListenerState {
   /** 0..1 progress of the hold timer */
   progress: number
   matched: boolean
+  /** You played (a strum was detected) but it doesn't match the target. */
+  wrong: boolean
   strings: (boolean | null)[] | null
 }
 
-const EMPTY: ListenerState = { signal: false, score: 0, heard: null, progress: 0, matched: false, strings: null }
+const EMPTY: ListenerState = { signal: false, score: 0, heard: null, progress: 0, matched: false, wrong: false, strings: null }
 
 function stringHints(chord: Chord, frame: AnalysisFrame, a4: number): (boolean | null)[] {
   return chord.frets.map((fret, i) => {
@@ -42,6 +44,7 @@ export function useChordListener(opts: {
   const { target, enabled, sensitivity, a4, resetKey } = opts
   const [state, setState] = useState<ListenerState>(EMPTY)
   const onMatch = useRef(opts.onMatch)
+  const lastOnset = useRef<number | null>(null)
   const hold = useRef<{ since: number | null; bad: number; fired: boolean; armUntil: number }>({
     since: null,
     bad: 0,
@@ -55,6 +58,7 @@ export function useChordListener(opts: {
 
   useEffect(() => {
     hold.current = { since: null, bad: 0, fired: false, armUntil: performance.now() + 350 }
+    lastOnset.current = null
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setState(EMPTY)
   }, [target, resetKey])
@@ -86,7 +90,10 @@ export function useChordListener(opts: {
         if (h.bad >= 2) h.since = null
         else if (h.since !== null) progress = Math.min(1, ((f.time - h.since) * 1000) / cfg.holdMs)
       }
+      const wrong =
+        !res.ok && lastOnset.current !== null && f.time - lastOnset.current >= 0.3 && f.chromaStrength >= 3
       setState({
+        wrong,
         signal: true,
         score: res.score,
         heard: top && top.score > 0.7 ? top : null,
@@ -98,6 +105,10 @@ export function useChordListener(opts: {
     [target, enabled, sensitivity, a4],
   )
 
+  const onOnset = useCallback((o: { time: number }) => {
+    lastOnset.current = o.time
+  }, [])
+  useOnsets(onOnset, enabled && !!target)
   useFrames('chords', { chroma: true }, cb, enabled && !!target)
   return state
 }

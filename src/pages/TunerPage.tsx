@@ -1,8 +1,9 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { engine } from '../audio/engine'
 import { IN_TUNE_CENTS, TunerLogic, type TunerReading } from '../audio/tuner'
 import { playReferenceTone } from '../audio/tone'
 import { MicGate } from '../components/MicGate'
+import { ListenBadge } from '../components/ListenBadge'
 import { useFrames } from '../hooks/useEngine'
 import { settingsStore } from '../lib/settings'
 import { useStore } from '../lib/store'
@@ -10,11 +11,11 @@ import { STANDARD_TUNING, STRING_LETTERS, STRING_NUMBERS, midiToFreq, midiToName
 
 const HOLD_MS = 800
 
-function Gauge({ cents, active, inTune }: { cents: number; active: boolean; inTune: boolean }) {
+function Gauge({ cents, active, tone }: { cents: number; active: boolean; tone: string }) {
   const c = Math.max(-50, Math.min(50, cents))
   const left = 50 + c
   return (
-    <div className={`gauge ${inTune ? 'in-tune' : ''} ${active ? '' : 'idle'}`}>
+    <div className={`gauge ${tone} ${active ? '' : 'idle'}`}>
       <div className="gauge-scale">
         {[-50, -40, -30, -20, -10, 0, 10, 20, 30, 40, 50].map((t) => (
           <div key={t} className={`tick ${t === 0 ? 'centre' : ''} ${t % 50 === 0 ? 'major' : ''}`} style={{ left: `${50 + t}%` }}>
@@ -60,16 +61,32 @@ export function TunerPage() {
   )
   useFrames('tuner', { pitch: true }, onFrame)
 
+  const [popped, setPopped] = useState<number | null>(null)
+  const prevDone = useRef<boolean[]>(done)
+  useEffect(() => {
+    const i = done.findIndex((d, k) => d && !prevDone.current[k])
+    prevDone.current = done
+    if (i >= 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setPopped(i)
+      const t = window.setTimeout(() => setPopped(null), 1100)
+      return () => window.clearTimeout(t)
+    }
+  }, [done])
+
   const nextToTune = done.findIndex((d) => !d)
   const allDone = nextToTune === -1
   const cents = reading?.cents ?? 0
   const live = !!reading
   const inTune = !!reading?.inTune
+  const tone: 'idle' | 'good' | 'warn' | 'bad' =
+    !reading || !reading.stable ? 'idle' : reading.inTune ? 'good' : Math.abs(reading.cents) <= 10 ? 'warn' : 'bad'
   const stringIdx = reading?.string ?? Math.max(0, nextToTune)
   const midi = STANDARD_TUNING[stringIdx]
 
   let hint = 'Pluck an open string and let it ring.'
-  if (allDone) hint = 'All six strings are in tune. Check again after a few chords; new strings drift.'
+  if (popped !== null) hint = `✓ ${ordinal(STRING_NUMBERS[popped])} string done.${nextToTune >= 0 ? ` Now the ${ordinal(STRING_NUMBERS[nextToTune])} (${STRING_LETTERS[nextToTune]}).` : ''}`
+  else if (allDone) hint = 'All six strings are in tune. Check again after a few chords; new strings drift.'
   else if (live) {
     if (inTune) hint = 'Perfect. Hold it…'
     else if (!reading!.stable) hint = 'Listening…'
@@ -85,14 +102,15 @@ export function TunerPage() {
 
   return (
     <MicGate why="The tuner listens to one string at a time and shows how many cents sharp or flat it is.">
-      <div className="card tuner">
+      <ListenBadge />
+      <div className={`card tuner tone-${allDone && !live ? 'good' : tone}`}>
         <div className="tuner-readout">
-          <div className={`note ${live ? '' : 'dim'} ${inTune ? 'good' : ''}`}>
+          <div className={`note ${live ? '' : 'dim'} ${tone}`}>
             {live || nextToTune >= 0 ? STRING_LETTERS[stringIdx] : '✓'}
             <small>{live || nextToTune >= 0 ? midiToNameOctave(midi) : ''}</small>
           </div>
           <div className="tuner-numbers mono">
-            <div className={`cents ${inTune ? 'good' : ''}`}>
+            <div className={`cents ${tone}`}>
               {live ? `${cents > 0 ? '+' : ''}${cents.toFixed(1)}` : '—'}
               <span>cents</span>
             </div>
@@ -102,14 +120,14 @@ export function TunerPage() {
           </div>
         </div>
 
-        <Gauge cents={cents} active={live} inTune={inTune} />
-        <p className={`hint ${inTune ? 'good' : ''}`}>{hint}</p>
+        <Gauge cents={cents} active={live} tone={tone} />
+        <p className={`hint ${tone}`}>{hint}</p>
 
         <div className="strings">
           {STANDARD_TUNING.map((m, s) => (
             <button
               key={s}
-              className={`string-pill ${done[s] ? 'done' : ''} ${reading?.string === s ? 'active' : ''} ${!allDone && s === nextToTune && !live ? 'next' : ''}`}
+              className={`string-pill ${done[s] ? 'done' : ''} ${reading?.string === s ? 'active' : ''} ${!allDone && s === nextToTune && !live ? 'next' : ''} ${popped === s ? 'pop' : ''}`}
               onClick={() => playRef(s)}
               title={`Click to hear ${midiToNameOctave(m)}`}
             >

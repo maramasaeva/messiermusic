@@ -5,7 +5,7 @@ interface Props {
   width?: number
   /** Per-string status (low E first): true = heard, false = missing, null = muted/not required. */
   strings?: (boolean | null)[] | null
-  tone?: 'idle' | 'good'
+  tone?: 'idle' | 'good' | 'bad'
 }
 
 const STR_X = (i: number) => 24 + i * 19
@@ -18,7 +18,7 @@ export function ChordDiagram({ chord, width = 160, strings = null, tone = 'idle'
   const maxFret = fretted.length ? Math.max(...fretted) : 0
   const minFret = fretted.length ? Math.min(...fretted) : 1
   const base = maxFret <= FRETS ? 1 : minFret
-  const accent = tone === 'good' ? 'var(--good)' : 'var(--text)'
+  const accent = tone === 'good' ? 'var(--good)' : tone === 'bad' ? 'var(--bad)' : 'var(--text)'
   const height = TOP + FRETS * FRET_H + 16
 
   return (

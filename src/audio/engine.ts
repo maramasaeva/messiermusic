@@ -38,6 +38,10 @@ class AudioEngine {
     return out + this.inputLatency
   }
 
+  get signal(): boolean {
+    return this.core?.signalNow ?? false
+  }
+
   get levelDb(): number {
     return this.core?.level ?? -120
   }

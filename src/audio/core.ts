@@ -68,6 +68,7 @@ export class AnalysisCore {
   private readonly featRe = new Float64Array(FEATURE_N)
   private readonly featIm = new Float64Array(FEATURE_N)
   private lastLevelDb = -120
+  signalNow = false
   private noiseDb = -90
 
   constructor(fs: number, handlers: CoreHandlers = {}) {
@@ -144,6 +145,7 @@ export class AnalysisCore {
     const sorted = [...this.levels].sort((a, b) => a - b)
     this.noiseDb = Math.min(-48, sorted[Math.floor(sorted.length * 0.15)])
     const signal = levelDb >= Math.max(this.noiseDb + 9, -62)
+    this.signalNow = signal
 
     let pitch: PitchResult | null = null
     let chroma: Float32Array | null = null

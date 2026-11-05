@@ -2,12 +2,13 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { engine } from '../audio/engine'
 import { ChordDiagram } from '../components/ChordDiagram'
 import { MicGate } from '../components/MicGate'
+import { ListenBadge } from '../components/ListenBadge'
 import { useEngineStatus } from '../hooks/useEngine'
 import { effectiveLatency, settingsStore } from '../lib/settings'
 import { useStore } from '../lib/store'
 import { PROGRESSIONS, chordLabel, progressionChords, type Chord } from '../music/chords'
 import { PATTERNS, PATTERN_BY_ID, stepLabels, type StrumPattern } from '../music/strum'
-import type { BarPlan, StepState } from '../strum/judge'
+import { hitWindow, type BarPlan, type StepState } from '../strum/judge'
 import { StrumSession, type SessionConfig, type SessionView } from '../strum/session'
 
 const SLACK = { strict: 0, normal: 0.125, forgiving: 0.25 } as const
@@ -17,6 +18,7 @@ interface Live {
   next: BarPlan | null
   step: number
   states: StepState[]
+  extras: number
 }
 
 const LEVEL_LABEL = { 1: 'Starter', 2: 'Groove', 3: 'Challenge' } as const
@@ -26,7 +28,7 @@ export function StrumPage() {
   const status = useEngineStatus()
   const [session, setSession] = useState<StrumSession | null>(null)
   const [view, setView] = useState<SessionView | null>(null)
-  const [live, setLive] = useState<Live>({ plan: null, next: null, step: -1, states: [] })
+  const [live, setLive] = useState<Live>({ plan: null, next: null, step: -1, states: [], extras: 0 })
   const [showSetup, setShowSetup] = useState(true)
   const sessionRef = useRef<StrumSession | null>(null)
 
@@ -96,11 +98,21 @@ export function StrumPage() {
       const t = ctx.currentTime - (ctx.outputLatency || ctx.baseLatency || 0)
       const { current, next } = session.planAt(t)
       const bar = current ? session.judge.getBar(current.index) : undefined
+      // a strum still missing once its window has closed (plus detector delay) shows red right away
+      const judgedUntil = ctx.currentTime - effectiveLatency() - 0.12
+      const states: StepState[] = bar
+        ? bar.steps.map((st, i) =>
+            st.state === 'pending' && current && judgedUntil > current.start + i * current.stepDur + hitWindow(current.stepDur)
+              ? 'miss'
+              : st.state,
+          )
+        : []
       setLive({
         plan: current,
         next,
         step: current ? Math.floor((t - current.start) / current.stepDur) : -1,
-        states: bar ? bar.steps.map((s) => s.state) : [],
+        states,
+        extras: bar && current?.judged ? bar.extras : 0,
       })
     }
     raf = requestAnimationFrame(loop)
@@ -129,7 +141,11 @@ export function StrumPage() {
   return (
     <div className="stack">
       <MicGate why="Strum along with the click. Your strums are timed against the beat, so keep the sound clear of other noise.">
+        <ListenBadge />
         <div className={`card strum-stage ${view?.tone ?? 'neutral'}`}>
+          {view?.lastResult && view.lastResult.version === view.recent[view.recent.length - 1]?.version && (
+            <div key={view.lastResult.index} className={`bar-flash ${view.lastResult.pass ? 'g' : 'r'}`} />
+          )}
           <div className="row between wrap gap">
             <div>
               <div className="eyebrow">{running ? 'Now playing' : 'Up first'}</div>
@@ -171,7 +187,14 @@ export function StrumPage() {
           )}
 
           <div className="row between wrap gap center-items">
-            <div className="msg">{view?.message ?? 'Choose patterns and a tempo, then press Start.'}</div>
+            <div className={`msg ${view?.tone ?? ''}`}>
+              {view?.message ?? 'Choose patterns and a tempo, then press Start.'}
+              {live.extras > 0 && running && (
+                <span key={live.extras} className="extra-badge" style={{ marginLeft: 8 }}>
+                  +{live.extras} extra strum
+                </span>
+              )}
+            </div>
             <div className="row gap">
               {running && (
                 <button className="btn ghost" onClick={() => session?.skipPattern()}>

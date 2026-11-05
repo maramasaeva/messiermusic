@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { ChordDiagram } from '../components/ChordDiagram'
 import { MicGate } from '../components/MicGate'
+import { ListenBadge } from '../components/ListenBadge'
 import { useChordListener } from '../hooks/useChordListener'
 import { useEngineStatus } from '../hooks/useEngine'
 import { settingsStore, statsStore } from '../lib/settings'
@@ -36,6 +37,7 @@ export function ChangesPage() {
   const [result, setResult] = useState<{ changes: number; avgMs: number; best: boolean } | null>(null)
   const lastAt = useRef<number | null>(null)
   const startedAt = useRef<number | null>(null)
+  const [flash, setFlash] = useState(false)
   const timesRef = useRef<number[]>([])
 
   const reset = useCallback(() => {
@@ -98,6 +100,8 @@ export function ChangesPage() {
       setTimes(timesRef.current)
     }
     setIdx((i) => i + 1)
+    setFlash(true)
+    window.setTimeout(() => setFlash(false), 450)
   }, [phase])
 
   const live = useChordListener({
@@ -166,6 +170,7 @@ export function ChangesPage() {
       </div>
 
       <MicGate why="Switch between the chords as fast as you can. Each clean change is counted automatically.">
+        <ListenBadge />
         {phase === 'finished' && result ? (
           <div className="card center result">
             <h2>{result.best ? '🔥 New personal best!' : 'Round complete'}</h2>
@@ -179,7 +184,7 @@ export function ChangesPage() {
             </button>
           </div>
         ) : (
-          <div className={`card stage ${phase === 'running' ? '' : ''}`}>
+          <div className={`card stage ${flash ? 'flash-good' : live.wrong ? 'flash-bad' : ''}`}>
             <div className="stage-main">
               <div className="row gap center-items">
                 <div className="col center-items">
@@ -188,7 +193,7 @@ export function ChangesPage() {
                     chord={target}
                     width={200}
                     strings={settings.showHints ? live.strings : null}
-                    tone={live.progress >= 1 ? 'good' : 'idle'}
+                    tone={flash ? 'good' : live.wrong ? 'bad' : 'idle'}
                   />
                 </div>
                 <div className="arrow">→</div>
@@ -200,8 +205,21 @@ export function ChangesPage() {
               </div>
             </div>
             <div className="stage-side">
-              <div className="ring" style={{ ['--p' as string]: live.progress }}>
-                <span>{live.heard ? live.heard.chord.name : '…'}</span>
+              <div className={`ring ${flash ? 'ok' : live.wrong ? 'bad' : ''}`} style={{ ['--p' as string]: flash || live.wrong ? 1 : live.progress }}>
+                <span>{flash ? '✓' : live.wrong ? '✗' : live.heard ? live.heard.chord.name : '…'}</span>
+              </div>
+              <div className={`status-line center ${flash ? 'good' : live.wrong ? 'bad' : 'muted'}`}>
+                {flash
+                  ? 'Clean change!'
+                  : live.wrong
+                    ? live.heard && live.heard.chord.pcMask !== target.pcMask
+                      ? `Not quite. That sounded like ${chordLabel(live.heard.chord)}.`
+                      : 'Not quite. Check the red strings.'
+                    : live.signal
+                      ? live.heard
+                        ? `Hearing ${chordLabel(live.heard.chord)}`
+                        : 'Hearing something…'
+                      : 'Strum the chord'}
               </div>
               {phase === 'ready' ? (
                 <p className="muted small center">The clock starts when you play the first chord.</p>

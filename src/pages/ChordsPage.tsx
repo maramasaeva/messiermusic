@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { ChordDiagram } from '../components/ChordDiagram'
 import { MicGate } from '../components/MicGate'
+import { ListenBadge } from '../components/ListenBadge'
 import { useChordListener } from '../hooks/useChordListener'
 import { useEngineStatus } from '../hooks/useEngine'
 import { settingsStore, statsStore } from '../lib/settings'
@@ -123,32 +124,37 @@ export function ChordsPage() {
       </div>
 
       <MicGate why="Play the chord shown. When it rings true the app moves on by itself. No tapping needed.">
+        <ListenBadge />
         {target && (
-          <div className={`card stage ${flash ? 'flash-good' : ''}`}>
+          <div className={`card stage ${flash ? 'flash-good' : live.wrong ? 'flash-bad' : ''}`}>
             <div className="stage-main">
               <div className="chord-name">{chordLabel(target)}</div>
               <ChordDiagram
                 chord={target}
                 width={220}
                 strings={settings.showHints ? live.strings : null}
-                tone={flash ? 'good' : 'idle'}
+                tone={flash ? 'good' : live.wrong ? 'bad' : 'idle'}
               />
             </div>
             <div className="stage-side">
               <div className={`listen ${live.signal ? 'on' : ''}`}>
-                <div className="ring" style={{ ['--p' as string]: flash ? 1 : live.progress }}>
-                  <span>{flash ? '✓' : live.heard ? live.heard.chord.name : paused ? '⏸' : '…'}</span>
+                <div className={`ring ${flash ? 'ok' : live.wrong ? 'bad' : ''}`} style={{ ['--p' as string]: flash ? 1 : live.wrong ? 1 : live.progress }}>
+                  <span>{flash ? '✓' : live.wrong ? '✗' : live.heard ? live.heard.chord.name : paused ? '⏸' : '…'}</span>
                 </div>
-                <div className="muted small center">
+                <div className={`status-line center ${flash ? 'good' : live.wrong ? 'bad' : 'muted'}`}>
                   {flash
-                    ? `${(flash.ms / 1000).toFixed(1)} s`
+                    ? `Nailed it · ${(flash.ms / 1000).toFixed(1)} s`
                     : paused
                       ? 'Paused'
-                      : live.signal
-                        ? live.heard
-                          ? `Hearing ${chordLabel(live.heard.chord)}`
-                          : 'Hearing something…'
-                        : 'Strum the chord'}
+                      : live.wrong
+                        ? live.heard && live.heard.chord.pcMask !== target.pcMask
+                          ? `Not quite. That sounded like ${chordLabel(live.heard.chord)}.`
+                          : 'Not quite. Check the red strings and strum again.'
+                        : live.signal
+                          ? live.heard
+                            ? `Hearing ${chordLabel(live.heard.chord)}`
+                            : 'Hearing something…'
+                          : 'Strum the chord'}
                 </div>
               </div>
               <div className="row gap">
