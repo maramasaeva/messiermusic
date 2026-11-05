@@ -98,7 +98,7 @@ export function SongEditor({ initial, onClose, onDeleted }: { initial: Song; onC
             />
             <small className="muted">
               Start a section with <code>## Verse</code>. Put a chord in square brackets right before the word where it changes, like{' '}
-              <code>[Am]over and over</code>. A line with only chords is fine. Chords are the shapes you finger; set the capo above.
+              <code>[Am]over and over</code>. A line with only chords is fine. To add lyrics, paste them as plain lines right under the chord line they belong to. Chords are the shapes you finger; set the capo above.
             </small>
           </label>
 

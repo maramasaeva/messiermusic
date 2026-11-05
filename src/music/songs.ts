@@ -33,7 +33,7 @@ export interface Song {
 const BY_NAME = new Map<string, Chord>()
 for (const c of CHORDS) if (!BY_NAME.has(c.name)) BY_NAME.set(c.name, c)
 
-const ROOT_ALIAS: Record<string, string> = { 'A#': 'Bb', 'D#': 'Eb', Db: 'C#', Gb: 'F#' }
+const ROOT_ALIAS: Record<string, string> = { 'A#': 'Bb', 'D#': 'Eb', 'G#': 'Ab', Db: 'C#', Gb: 'F#' }
 
 export interface Resolved {
   label: string
@@ -48,16 +48,18 @@ export function resolveChordToken(token: string): Resolved {
   if (!label || /^n\.?c\.?$/i.test(label)) return none
   const m = /^([A-G][#b]?)(.*)$/.exec(label)
   if (!m) return none
-  const root = ROOT_ALIAS[m[1]] ?? m[1]
   const [qual0] = m[2].split('/')
   const qual = qual0.replace(/\(.*?\)/g, '')
   const minor = /^m(?!aj)/.test(qual)
-  const candidates = [root + qual0, root + qual]
-  if (qual.startsWith('dim')) candidates.push(`${root}dim7`)
-  candidates.push(root + (minor ? 'm' : ''))
-  for (const name of candidates) {
-    const chord = BY_NAME.get(name)
-    if (chord) return { label, chord, simplified: chord.name !== label }
+  const roots = ROOT_ALIAS[m[1]] ? [m[1], ROOT_ALIAS[m[1]]] : [m[1]]
+  for (const root of roots) {
+    const candidates = [root + qual0, root + qual]
+    if (qual.startsWith('dim')) candidates.push(`${root}dim7`)
+    candidates.push(root + (minor ? 'm' : ''))
+    for (const name of candidates) {
+      const chord = BY_NAME.get(name)
+      if (chord) return { label, chord, simplified: chord.name !== label }
+    }
   }
   return none
 }
@@ -71,6 +73,27 @@ export function shapeName(soundingName: string, capo: number): string {
   if (!m || !capo) return soundingName
   const pc = (((ROOT_PC[m[1]] - capo) % 12) + 12) % 12
   return SHARP_NAMES[pc] + m[2]
+}
+
+const CHORD_RE = /\[([^\]]*)\]/g
+
+const GUITAR_NAMES = ['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B']
+
+function transposeName(root: string, n: number): string {
+  return GUITAR_NAMES[(((ROOT_PC[root] + n) % 12) + 12) % 12]
+}
+
+/** "C/G" up 2 semitones is "D/A". Anything that isn't a chord (N.C., ?) is left alone. */
+export function transposeToken(label: string, semitones: number): string {
+  const m = /^([A-G][#b]?)(.*?)(?:\/([A-G][#b]?))?$/.exec(label.trim())
+  if (!m || !semitones) return label
+  return transposeName(m[1], semitones) + m[2] + (m[3] ? `/${transposeName(m[3], semitones)}` : '')
+}
+
+/** Rewrites every [chord] in a chart so it sounds `semitones` higher (use the capo fret to play a capo song without a capo). */
+export function transposeChart(chart: string, semitones: number): string {
+  if (!semitones) return chart
+  return chart.replace(CHORD_RE, (_, tok: string) => `[${transposeToken(tok, semitones)}]`)
 }
 
 // ---------- chart parser ----------
@@ -103,8 +126,6 @@ export interface ParsedSong {
   shapes: Chord[]
   unresolved: string[]
 }
-
-const CHORD_RE = /\[([^\]]*)\]/g
 
 export function parseChart(chart: string): ParsedSong {
   const sections: Section[] = []
@@ -187,7 +208,6 @@ const TWINKLE = `
 `
 
 const WAITING_ROOM = `
-> Capo 2. These are the shapes you finger; the song sounds in D.
 > Add your own lyrics under the chords with Edit (the lyrics are not included here).
 ## Intro
 [C] [Fmaj7] [Am7] [Em] [G]

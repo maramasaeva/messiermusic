@@ -7,10 +7,12 @@ interface SongState {
   /** Your changes to built-in songs, by id. */
   edits: Record<string, Partial<Song>>
   runs: Record<string, number>
+  /** Play capo songs without a capo (chords are transposed to sound the same). */
+  noCapo: boolean
   lastId: string | null
 }
 
-export const songStore = createStore<SongState>('mm:songs:v1', { custom: [], edits: {}, runs: {}, lastId: null })
+export const songStore = createStore<SongState>('mm:songs:v1', { custom: [], edits: {}, runs: {}, noCapo: true, lastId: null })
 
 export function allSongs(s: SongState): Song[] {
   return [...BUILTIN_SONGS.map((b) => ({ ...b, ...(s.edits[b.id] ?? {}) })), ...s.custom]

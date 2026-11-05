@@ -9,7 +9,7 @@ import { settingsStore } from '../lib/settings'
 import { countRun, songStore, useSongs } from '../lib/songStore'
 import { useStore } from '../lib/store'
 import { chordLabel } from '../music/chords'
-import { parseChart, shapeName, type ParsedSong, type Song } from '../music/songs'
+import { parseChart, shapeName, transposeChart, type ParsedSong, type Song } from '../music/songs'
 import { PATTERN_BY_ID, stepLabels } from '../music/strum'
 
 const LEVELS = ['', 'Beginner', 'Intermediate', 'Advanced']
@@ -99,8 +99,16 @@ function StrumRow({ patternId }: { patternId: string }) {
   )
 }
 
-function SongView({ song, onBack, onEdit }: { song: Song; onBack: () => void; onEdit: () => void }) {
+function SongView({ song: original, onBack, onEdit }: { song: Song; onBack: () => void; onEdit: () => void }) {
+  const { noCapo } = useStore(songStore)
+  const capoFree = noCapo && original.capo > 0
+  // without a capo the same song is played `capo` semitones higher on the neck (same sound, different shapes)
+  const song: Song = useMemo(
+    () => (capoFree ? { ...original, capo: 0, chart: transposeChart(original.chart, original.capo) } : original),
+    [original, capoFree],
+  )
   const parsed = useMemo(() => parseChart(song.chart), [song.chart])
+  const hasLyrics = parsed.sections.some((sec) => sec.lines.some((l) => l.kind === 'lyric' && l.segs.some((g) => g.text.trim())))
   const [practice, setPractice] = useState(false)
   const [idx, setIdx] = useState(0)
   const pattern = PATTERN_BY_ID[song.patternId]
@@ -150,7 +158,32 @@ function SongView({ song, onBack, onEdit }: { song: Song; onBack: () => void; on
           {song.bpm && <span className="pill">{song.bpm} bpm</span>}
           {song.key && <span className="pill">Key {song.key}</span>}
         </div>
+        {original.capo > 0 && (
+          <div className="row wrap gap center-items" style={{ marginTop: 12 }}>
+            <div className="seg" role="group" aria-label="Capo">
+              <button className={!noCapo ? 'on' : ''} onClick={() => songStore.set({ noCapo: false })}>
+                With capo (fret {original.capo})
+              </button>
+              <button className={noCapo ? 'on' : ''} onClick={() => songStore.set({ noCapo: true })}>
+                No capo
+              </button>
+            </div>
+            {capoFree && (
+              <span className="muted small">
+                Same sound as the recording, played without a capo: every chord is moved up {original.capo} semitones, so expect more barre chords.
+              </span>
+            )}
+          </div>
+        )}
         {song.remark && <p className="muted small" style={{ marginBottom: 0 }}>{song.remark}</p>}
+        {!hasLyrics && (
+          <div className="row gap wrap center-items" style={{ marginTop: 10 }}>
+            <span className="muted small">No lyrics yet. Paste yours under the chords; plain lines show up as-is.</span>
+            <button className="btn small" onClick={onEdit}>
+              Add lyrics
+            </button>
+          </div>
+        )}
         {parsed.unresolved.length > 0 && (
           <p className="warn small" style={{ marginBottom: 0 }}>
             No diagram for {parsed.unresolved.join(', ')}; those are shown but skipped when practising.

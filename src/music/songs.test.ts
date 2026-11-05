@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { PATTERN_BY_ID } from './strum'
-import { BUILTIN_SONGS, parseChart, resolveChordToken, shapeName } from './songs'
+import { BUILTIN_SONGS, parseChart, resolveChordToken, shapeName, transposeChart, transposeToken } from './songs'
 import { transposeChord, chordByName } from './chords'
 
 describe('chord token resolution', () => {
@@ -86,5 +86,32 @@ describe('capo helpers', () => {
     expect(shapeName('D', 2)).toBe('C')
     expect(shapeName('Em', 2)).toBe('Dm')
     expect(shapeName('A', 0)).toBe('A')
+  })
+})
+
+describe('playing a capo song without the capo', () => {
+  it('transposes tokens, slash chords and leaves non-chords alone', () => {
+    expect(transposeToken('C', 2)).toBe('D')
+    expect(transposeToken('Fmaj7', 2)).toBe('Gmaj7')
+    expect(transposeToken('Am7', 2)).toBe('Bm7')
+    expect(transposeToken('Em', 2)).toBe('F#m')
+    expect(transposeToken('G', 2)).toBe('A')
+    expect(transposeToken('C/G', 2)).toBe('D/A')
+    expect(transposeToken('Bb', 2)).toBe('C')
+    expect(transposeToken('N.C.', 2)).toBe('N.C.')
+  })
+  it('turns the Waiting Room capo-2 shapes into the original D-key chords, all playable', () => {
+    const wr = BUILTIN_SONGS.find((s) => s.id === 'waiting-room')!
+    const t = parseChart(transposeChart(wr.chart, wr.capo))
+    expect(t.unresolved).toEqual([])
+    expect(t.shapes.map((c) => c.name).sort()).toEqual(['A', 'Bm7', 'D', 'F#m', 'Gmaj7'])
+    const first = t.steps.slice(0, 5).map((s) => s.label)
+    expect(first).toEqual(['D', 'Gmaj7', 'Bm7', 'F#m', 'A'])
+  })
+  it('keeps plain lyric lines you paste under the chords', () => {
+    const p = parseChart('## Verse\n[C] [G]\nSome words here\n[Am]more [F]words')
+    const l = p.sections[0].lines[1]
+    expect(l.kind === 'lyric' && l.segs.map((s) => s.text)).toEqual(['Some words here'])
+    expect(p.steps.map((s) => s.chord.name)).toEqual(['C', 'G', 'Am', 'F'])
   })
 })
