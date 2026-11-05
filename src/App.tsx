@@ -5,11 +5,13 @@ import { useEngineStatus } from './hooks/useEngine'
 import { engine } from './audio/engine'
 import { ChangesPage } from './pages/ChangesPage'
 import { ChordsPage } from './pages/ChordsPage'
+import { CoursesPage } from './pages/CoursesPage'
 import { SongsPage } from './pages/SongsPage'
 import { StrumPage } from './pages/StrumPage'
 import { TunerPage } from './pages/TunerPage'
 
 const TABS = [
+  { id: 'courses', label: 'Courses', icon: '🎓' },
   { id: 'tuner', label: 'Tuner', icon: '◎' },
   { id: 'chords', label: 'Chords', icon: '♯' },
   { id: 'changes', label: 'Changes', icon: '⇄' },
@@ -77,6 +79,7 @@ export default function App() {
       </header>
 
       <main className="content">
+        {tab === 'courses' && <CoursesPage />}
         {tab === 'tuner' && <TunerPage />}
         {tab === 'chords' && <ChordsPage />}
         {tab === 'changes' && <ChangesPage />}

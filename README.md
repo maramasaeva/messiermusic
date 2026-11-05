@@ -6,6 +6,7 @@ A browser-based guitar trainer that listens through your microphone and moves yo
 - **Chords** – flash-card style deck (open, 7ths, sus, barre, power chords). Play the chord shown; once it rings true it advances by itself. Live "which strings am I sounding" hints on the diagram.
 - **Changes** – chord-change drills (G↔C, Am↔E, progressions, custom). 60-second changes-per-minute challenge with personal bests.
 - **Strum** – pattern trainer with a metronome and count-in. Strums are timed against the beat; clean bars level you up (speed ladder, then next pattern). Optional chord check on every bar and an experimental up/down check.
+- **Courses** – a guided path: learn each open chord (play it cleanly, muting between plays), then timed exercises that string learned chords together (stars for speed), then strum lessons that combine chords with rhythm. Recap courses are generated from everything taught before them and are shuffled on every attempt.
 - **Songs** – chords, strumming and lyrics per song, written in a simple text format (`## Verse`, `[Am]word`). Play along and the song follows you chord by chord, capo-aware. Add or edit your own songs in the app (stored in your browser). Built in: Twinkle Twinkle, Waiting Room, Distortion!! (chords only; paste your own lyrics via Edit).
 
 Everything runs locally in the browser. No audio leaves the device.

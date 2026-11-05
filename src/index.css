@@ -1272,3 +1272,165 @@ input[type='range'] {
     top: 110px;
   }
 }
+
+/* ---- courses ---- */
+.course-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 14px;
+}
+.course-card {
+  text-align: left;
+  cursor: pointer;
+  color: var(--text);
+  font: inherit;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  transition: border-color 0.15s, transform 0.15s;
+}
+.course-card:not(:disabled):hover {
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+.course-card.recap {
+  border-style: dashed;
+  border-color: var(--line-strong);
+}
+.course-card.locked,
+.lesson-row.locked {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.progress-track {
+  height: 6px;
+  border-radius: 99px;
+  background: var(--surface2);
+  overflow: hidden;
+  margin-top: 10px;
+}
+.progress-track > div {
+  height: 100%;
+  background: var(--good);
+  border-radius: 99px;
+  transition: width 0.3s;
+}
+.lesson-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.lesson-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  text-align: left;
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+  padding-top: 14px;
+  padding-bottom: 14px;
+}
+.lesson-row:not(:disabled):hover {
+  border-color: var(--accent);
+}
+.lesson-row.done .lesson-num {
+  background: var(--good);
+  color: #04210f;
+}
+.lesson-num {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--surface2);
+  font-weight: 700;
+}
+.lesson-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+.lesson-title {
+  font-weight: 700;
+  font-size: 16px;
+}
+.lesson-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+.stars {
+  font-size: 34px;
+  letter-spacing: 4px;
+  color: var(--line-strong);
+}
+.stars.small {
+  font-size: 16px;
+  letter-spacing: 1px;
+}
+.stars .on {
+  color: var(--accent);
+}
+.tips {
+  margin: 0;
+  padding-left: 20px;
+  max-width: 340px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 15px;
+}
+.dots {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  justify-content: center;
+}
+.seq-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.seq-chip {
+  padding: 4px 10px;
+  border-radius: 8px;
+  background: var(--surface2);
+  border: 1px solid var(--line);
+  font-weight: 700;
+  color: var(--muted);
+}
+.seq-chip.done {
+  color: var(--good);
+  opacity: 0.6;
+}
+.seq-chip.next {
+  color: var(--info);
+  border-color: rgba(110, 168, 255, 0.5);
+}
+.seq-chip.now {
+  background: var(--accent);
+  color: var(--accent-ink);
+  border-color: var(--accent);
+}
+.timebar {
+  height: 6px;
+  width: 100%;
+  background: var(--surface2);
+  border-radius: 99px;
+  overflow: hidden;
+}
+.timebar > div {
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.1s linear;
+}
+.lesson-strum {
+  position: relative;
+}
